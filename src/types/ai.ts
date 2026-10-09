@@ -1,3 +1,5 @@
+import type { TransitMode } from './transit';
+
 /**
  * Local AI & SLM Inference Types for react-native-llama
  */
@@ -13,6 +15,13 @@ export type ModelStatus =
   | 'loading'
   | 'active'
   | 'error';
+
+export interface QuantizationProfile {
+  type: ModelQuantization;
+  bitsPerWeight: number;
+  description: string;
+  recommendedFor: string;
+}
 
 export interface ModelDescriptor {
   id: string;
@@ -32,12 +41,15 @@ export interface ModelDescriptor {
 
 export interface LlamaRuntimeConfig {
   modelPath: string;
-  nCtx: number;
-  nGpuLayers: number;
-  nThreads: number;
-  useMmap: boolean;
-  useMlock: boolean;
+  nCtx?: number;
+  nGpuLayers?: number;
+  nThreads?: number;
+  nBatch?: number;
+  useMmap?: boolean;
+  useMlock?: boolean;
   chatTemplate?: string;
+  isModelAsset?: boolean;
+  flashAttn?: boolean;
 }
 
 export interface InferenceSamplingConfig {
@@ -47,6 +59,10 @@ export interface InferenceSamplingConfig {
   maxTokens: number;
   stopWords: string[];
   penaltyRepeat?: number;
+  penaltyFreq?: number;
+  penaltyPresent?: number;
+  jsonSchema?: string;
+  grammar?: string;
 }
 
 export interface InferenceMetrics {
@@ -60,11 +76,29 @@ export interface InferenceMetrics {
 
 export type TokenStreamCallback = (token: string, accumulatedText: string) => void;
 
+export type TransitIntent =
+  | 'find_route'
+  | 'fare_inquiry'
+  | 'terminal_info'
+  | 'general_help'
+  | 'unknown';
+
 export interface IntentExtractionResult {
-  intent: 'find_route' | 'fare_inquiry' | 'terminal_info' | 'general_help' | 'unknown';
+  intent: TransitIntent;
   origin?: string;
   destination?: string;
-  preferredMode?: string;
+  preferredMode?: TransitMode | string;
   rawJson?: string;
   confidence?: number;
+}
+
+export interface LlamaServiceState {
+  isLoaded: boolean;
+  isGenerating: boolean;
+  isMockMode: boolean;
+  activeModelPath: string | null;
+  gpuAccelerated: boolean;
+  threads: number;
+  contextSize: number;
+  lastError: string | null;
 }
