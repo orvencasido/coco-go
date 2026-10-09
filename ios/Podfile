@@ -15,6 +15,18 @@ target 'CocoGo' do
 
   # Target Apple Silicon & Metal hardware acceleration flags for llama.cpp
   post_install do |installer|
+    model_path = File.expand_path('../src/assets/models/qwen2.5-1.5b-instruct-q4_k_m.gguf', __dir__)
+    unless File.file?(model_path) && File.size(model_path) == 1117320736
+      raise 'Bundled Qwen model missing or incomplete. Run npm run prepare:model before pod install.'
+    end
+    installer.aggregate_targets.map(&:user_project).uniq.each do |project|
+      app_target = project.targets.find { |target| target.name == 'CocoGo' }
+      next unless app_target
+      reference = project.files.find { |file| file.real_path.to_s == model_path } || project.new_file(model_path)
+      app_target.resources_build_phase.add_file_reference(reference, true)
+      project.save
+    end
+
     react_native_post_install(
       installer,
       config[:react_native_path],

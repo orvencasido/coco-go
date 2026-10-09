@@ -72,8 +72,8 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({
                 style={[styles.btn, styles.resumeBtn]}
                 onPress={onResume}
                 testID="download-resume-btn"
-                accessibilityLabel="Resume download">
-                <Text style={styles.btnText}>Resume</Text>
+                accessibilityLabel="Restart paused download">
+                <Text style={styles.btnText}>Restart</Text>
               </TouchableOpacity>
             )
           ) : (

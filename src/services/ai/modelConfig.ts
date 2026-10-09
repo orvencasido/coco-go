@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import bundledModel from '../../../scripts/bundled-model.json';
 import {
   ModelDescriptor,
   InferenceSamplingConfig,
@@ -15,13 +16,8 @@ import {
  */
 export const AVAILABLE_MODELS: Record<string, ModelDescriptor> = {
   'qwen2.5-1.5b-q4': {
-    id: 'qwen2.5-1.5b-q4',
+    ...bundledModel,
     name: 'Qwen 2.5 1.5B (Standard)',
-    filename: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
-    downloadUrl:
-      'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf',
-    checksumSha256: 'placeholder_sha256_qwen1.5b_q4',
-    sizeBytes: 986000000, // ~986 MB
     parameterSize: '1.5B',
     quantization: 'Q4_K_M',
     tier: 'standard',
@@ -36,8 +32,8 @@ export const AVAILABLE_MODELS: Record<string, ModelDescriptor> = {
     filename: 'qwen2.5-0.5b-instruct-q4_k_m.gguf',
     downloadUrl:
       'https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf',
-    checksumSha256: 'placeholder_sha256_qwen0.5b_q4',
-    sizeBytes: 390000000, // ~390 MB
+    checksumSha256: '74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db',
+    sizeBytes: 491400032, // Exact upstream file size
     parameterSize: '0.5B',
     quantization: 'Q4_K_M',
     tier: 'ultra_light',
@@ -52,8 +48,8 @@ export const AVAILABLE_MODELS: Record<string, ModelDescriptor> = {
     filename: 'qwen2.5-3b-instruct-q4_k_m.gguf',
     downloadUrl:
       'https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf',
-    checksumSha256: 'placeholder_sha256_qwen3b_q4',
-    sizeBytes: 1930000000, // ~1.93 GB
+    checksumSha256: '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
+    sizeBytes: 2104932768, // Exact upstream file size
     parameterSize: '3B',
     quantization: 'Q4_K_M',
     tier: 'power',
@@ -175,7 +171,7 @@ Suggest nearby major transfer hubs such as PITX, Buendia (Gil Puyat), Cubao, Ala
  */
 export const DEFAULT_CONTEXT_WINDOW = 2048; // Caps KV cache memory under 150 MB
 
-export const DEFAULT_RUNTIME_CONFIG: Required<Omit<LlamaRuntimeConfig, 'modelPath' | 'chatTemplate' | 'isModelAsset'>> = {
+export const DEFAULT_RUNTIME_CONFIG: Required<Omit<LlamaRuntimeConfig, 'modelPath' | 'chatTemplate' | 'isModelAsset' | 'allowMockMode'>> = {
   nCtx: DEFAULT_CONTEXT_WINDOW,
   nGpuLayers: Platform.OS === 'ios' ? 99 : 0, // Metal GPU on iOS, CPU/Vulkan on Android
   nThreads: 2,
@@ -192,7 +188,7 @@ export const DEFAULT_RUNTIME_CONFIG: Required<Omit<LlamaRuntimeConfig, 'modelPat
  */
 export function resolveOptimalHardwareConfig(
   overrides?: Partial<LlamaRuntimeConfig>,
-): Required<Omit<LlamaRuntimeConfig, 'modelPath' | 'chatTemplate' | 'isModelAsset'>> {
+): Required<Omit<LlamaRuntimeConfig, 'modelPath' | 'chatTemplate' | 'isModelAsset' | 'allowMockMode'>> {
   const hardwareConcurrency =
     (typeof navigator !== 'undefined' && (navigator as any)?.hardwareConcurrency) || 4;
 

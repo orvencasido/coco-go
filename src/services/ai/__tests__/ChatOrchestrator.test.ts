@@ -57,7 +57,7 @@ describe('ChatOrchestrator & Offline RAG Pipeline', () => {
     llamaService = new LlamaServiceImpl();
     // Initialize LlamaService in mock/dev mode
     await llamaService.initModel({
-      modelPath: '/dummy/model.gguf',
+      allowMockMode: true, modelPath: '/dummy/model.gguf',
     });
     orchestrator = new ChatOrchestratorImpl(llamaService, solver, db);
   });

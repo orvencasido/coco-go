@@ -72,7 +72,7 @@ describe('ModelStorage', () => {
 
       const result = await ModelStorage.verifyModelSize(filename, 986000000);
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('smaller than expected');
+      expect(result.error).toContain('does not match expected size');
     });
   });
 

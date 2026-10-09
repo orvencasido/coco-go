@@ -10,9 +10,13 @@ export interface ModelDownloadState {
   isPaused: boolean;
   speedBps?: number;
   statusText?: string;
+  failureStage?: 'download' | 'activation';
 }
 
 interface AppState {
+  modelInitializationError: string | null;
+  modelInitializationMessage: string;
+  modelInitializationProgress: number | null;
   // AI Model State
   activeModelId: string;
   modelStatus: Record<string, ModelStatus>;
@@ -51,6 +55,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  modelInitializationError: null,
+  modelInitializationMessage: 'Preparing Qwen 2.5 1.5B…',
+  modelInitializationProgress: null,
   activeModelId: DEFAULT_MODEL_ID,
   modelStatus: {
     'qwen2.5-1.5b-q4': 'not_downloaded',

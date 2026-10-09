@@ -32,7 +32,7 @@ export const ChatMessageBubble: React.FC<Props> = ({ message }) => {
               <Text style={styles.senderLabel}>Coco Transit AI</Text>
             </View>
             <View style={styles.offlinePill}>
-              <Text style={styles.offlinePillText}>100% Offline</Text>
+              <Text style={styles.offlinePillText}>Coco</Text>
             </View>
           </View>
         )}

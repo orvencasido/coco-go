@@ -99,9 +99,25 @@ describe('LlamaService Lifecycle & Streaming', () => {
     expect(state.isGenerating).toBe(false);
   });
 
+  it('rejects a missing model instead of activating canned AI responses', async () => {
+    await expect(service.initModel({ modelPath: '/missing.gguf' })).rejects.toThrow('Model file not found');
+    expect(service.isModelLoaded()).toBe(false);
+    expect(service.getState().isMockMode).toBe(false);
+  });
+
+  it('reports native initialization failures instead of silently using mock mode', async () => {
+    const rnfs = require('react-native-fs');
+    const llama = require('llama.rn');
+    rnfs.exists.mockResolvedValueOnce(true);
+    llama.initLlama.mockRejectedValueOnce(new Error('Not enough memory'));
+    await expect(service.initModel({ modelPath: '/real.gguf' })).rejects.toThrow('Not enough memory');
+    expect(service.isModelLoaded()).toBe(false);
+    expect(service.getState().isMockMode).toBe(false);
+  });
+
   it('initializes in fallback mock mode when model file does not exist on disk', async () => {
     const success = await service.initModel({
-      modelPath: '/non/existent/path/qwen.gguf',
+      allowMockMode: true, modelPath: '/non/existent/path/qwen.gguf',
       nCtx: 2048,
     });
 
@@ -113,7 +129,7 @@ describe('LlamaService Lifecycle & Streaming', () => {
 
   it('streams tokens with callback and returns valid performance metrics', async () => {
     await service.initModel({
-      modelPath: '/dummy/model.gguf',
+      allowMockMode: true, modelPath: '/dummy/model.gguf',
     });
 
     const receivedTokens: string[] = [];
@@ -138,7 +154,7 @@ describe('LlamaService Lifecycle & Streaming', () => {
 
   it('simulates intent extraction JSON when prompted in mock mode', async () => {
     await service.initModel({
-      modelPath: '/dummy/model.gguf',
+      allowMockMode: true, modelPath: '/dummy/model.gguf',
     });
 
     let accumulatedText = '';
@@ -158,7 +174,7 @@ describe('LlamaService Lifecycle & Streaming', () => {
 
   it('safely releases context and deallocates memory on releaseModel()', async () => {
     await service.initModel({
-      modelPath: '/dummy/model.gguf',
+      allowMockMode: true, modelPath: '/dummy/model.gguf',
     });
     expect(service.isModelLoaded()).toBe(true);
 
@@ -170,7 +186,7 @@ describe('LlamaService Lifecycle & Streaming', () => {
 
   it('clears cache without error', async () => {
     await service.initModel({
-      modelPath: '/dummy/model.gguf',
+      allowMockMode: true, modelPath: '/dummy/model.gguf',
     });
     await expect(service.clearCache(true)).resolves.not.toThrow();
   });

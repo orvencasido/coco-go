@@ -14,6 +14,7 @@ build/
 
 # Large Model weights (keep small placeholder or metadata, exclude large weights)
 *.gguf
+*.gguf.part
 *.bin
 *.pt
 !src/assets/models/.gitkeep

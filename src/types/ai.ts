@@ -43,6 +43,8 @@ export interface ModelDescriptor {
 
 export interface LlamaRuntimeConfig {
   modelPath: string;
+  /** Explicit opt-in for test fixtures. App model activation leaves this disabled. */
+  allowMockMode?: boolean;
   nCtx?: number;
   nGpuLayers?: number;
   nThreads?: number;

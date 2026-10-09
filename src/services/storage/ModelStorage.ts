@@ -145,14 +145,12 @@ export class ModelStorage {
     }
 
     if (expectedBytes && expectedBytes > 0) {
-      // Allow minor variation (e.g. metadata or rounding difference down to 95%)
-      const minExpected = expectedBytes * 0.95;
-      if (sizeBytes < minExpected) {
+      if (sizeBytes !== expectedBytes) {
         return {
           exists: true,
           sizeBytes,
           isValid: false,
-          error: `Model file size (${sizeBytes} bytes) is smaller than expected (${expectedBytes} bytes)`,
+          error: `Model file size (${sizeBytes} bytes) does not match expected size (${expectedBytes} bytes)`,
         };
       }
     }

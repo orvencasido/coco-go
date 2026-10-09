@@ -95,7 +95,7 @@ export async function runEvaluationBenchmark(): Promise<BenchmarkSummary> {
   await db.initialize();
   const solver = new RouteSolverImpl(db);
   const llamaService = new LlamaServiceImpl();
-  await llamaService.initModel({ modelPath: '/dummy/model.gguf' });
+  await llamaService.initModel({ allowMockMode: true, modelPath: '/dummy/model.gguf' });
   const orchestrator = new ChatOrchestratorImpl(llamaService, solver, db);
 
   const allTerminals = await db.getAllTerminals();

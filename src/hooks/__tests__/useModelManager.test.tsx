@@ -4,6 +4,7 @@ import { useModelManager } from '../useModelManager';
 import { useAppStore } from '@/services/storage/useAppStore';
 import { ModelStorage } from '@/services/storage/ModelStorage';
 import { LlamaService } from '@/services/ai/LlamaService';
+import { ModelDownloader } from '@/services/storage/ModelDownloader';
 import { AVAILABLE_MODELS } from '@/services/ai/modelConfig';
 
 function renderHook<T>(hook: () => T) {
@@ -84,59 +85,25 @@ describe('useModelManager', () => {
     unmount();
   });
 
-  it('manages download progress, pause, resume, and completion', async () => {
-    const { result, rerender, unmount } = renderHook(() => useModelManager());
-
-    await act(async () => {
-      await result.current.startDownload('qwen2.5-1.5b-q4', { fastSimulation: true });
-    });
-    rerender();
-
-    expect(result.current.modelStatus['qwen2.5-1.5b-q4']).toBe('downloading');
-
-    // Pause download
-    act(() => {
-      result.current.pauseDownload('qwen2.5-1.5b-q4');
-    });
-    rerender();
-
-    expect(result.current.downloadStateMap['qwen2.5-1.5b-q4']?.isPaused).toBe(true);
-
-    // Resume download
-    act(() => {
-      result.current.resumeDownload('qwen2.5-1.5b-q4');
-    });
-    rerender();
-
-    expect(result.current.downloadStateMap['qwen2.5-1.5b-q4']?.isPaused).toBe(false);
-
-    // Advance timers for fastSimulation completion
-    act(() => {
-      jest.advanceTimersByTime(200);
-    });
-    rerender();
-
-    expect(result.current.modelStatus['qwen2.5-1.5b-q4']).toBe('ready');
-    unmount();
-  });
-
-  it('cancels an ongoing download cleanly', async () => {
-    const { result, rerender, unmount } = renderHook(() => useModelManager());
-
+  it('starts a real downloader with the selected model descriptor', async () => {
+    const start = jest.spyOn(ModelDownloader, 'start').mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() => useModelManager());
     await act(async () => {
       await result.current.startDownload('qwen2.5-1.5b-q4');
     });
-    rerender();
+    expect(start).toHaveBeenCalledWith(AVAILABLE_MODELS['qwen2.5-1.5b-q4']);
+    start.mockRestore();
+    unmount();
+  });
 
-    expect(result.current.modelStatus['qwen2.5-1.5b-q4']).toBe('downloading');
-
-    act(() => {
-      result.current.cancelDownload('qwen2.5-1.5b-q4');
+  it('cancels through the real downloader', async () => {
+    const cancel = jest.spyOn(ModelDownloader, 'cancel').mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() => useModelManager());
+    await act(async () => {
+      await result.current.cancelDownload('qwen2.5-1.5b-q4');
     });
-    rerender();
-
-    expect(result.current.modelStatus['qwen2.5-1.5b-q4']).toBe('not_downloaded');
-    expect(result.current.downloadStateMap['qwen2.5-1.5b-q4']).toBeUndefined();
+    expect(cancel).toHaveBeenCalledWith('qwen2.5-1.5b-q4');
+    cancel.mockRestore();
     unmount();
   });
 
@@ -145,6 +112,10 @@ describe('useModelManager', () => {
     const { result, rerender, unmount } = renderHook(() => useModelManager());
 
     const targetModel = AVAILABLE_MODELS['qwen2.5-0.5b-q4'];
+    ModelStorage.setMockFile(targetModel.filename, targetModel.sizeBytes);
+    const spyState = jest.spyOn(LlamaService, 'getState').mockReturnValue({
+      ...LlamaService.getState(), isLoaded: true, isMockMode: false,
+    });
 
     await act(async () => {
       const success = await result.current.selectModel(targetModel);
@@ -161,6 +132,7 @@ describe('useModelManager', () => {
     );
 
     spyInitModel.mockRestore();
+    spyState.mockRestore();
     unmount();
   });
 
@@ -182,6 +154,35 @@ describe('useModelManager', () => {
     expect(
       result.current.availableModelsList.some((m) => m.name === 'My Custom Tiny GGUF'),
     ).toBe(true);
+    unmount();
+  });
+
+  it('does not activate a model whose file is missing', async () => {
+    const initialize = jest.spyOn(LlamaService, 'initModel');
+    const { result, unmount } = renderHook(() => useModelManager());
+    await act(async () => {
+      expect(await result.current.selectModel(AVAILABLE_MODELS['qwen2.5-0.5b-q4'])).toBe(false);
+    });
+    expect(initialize).not.toHaveBeenCalled();
+    expect(useAppStore.getState().activeModelId).toBe('qwen2.5-1.5b-q4');
+    expect(useAppStore.getState().modelStatus['qwen2.5-0.5b-q4']).toBe('error');
+    initialize.mockRestore();
+    unmount();
+  });
+
+  it('reports native activation failure and keeps the downloaded file available for retry', async () => {
+    const model = AVAILABLE_MODELS['qwen2.5-0.5b-q4'];
+    ModelStorage.setMockFile(model.filename, model.sizeBytes);
+    const initialize = jest.spyOn(LlamaService, 'initModel').mockRejectedValueOnce(new Error('Native engine failed'));
+    const { result, unmount } = renderHook(() => useModelManager());
+    await act(async () => {
+      expect(await result.current.selectModel(model)).toBe(false);
+    });
+    expect(useAppStore.getState().modelStatus[model.id]).toBe('error');
+    expect(useAppStore.getState().downloadStateMap[model.id].failureStage).toBe('activation');
+    expect(useAppStore.getState().activeModelId).toBe('qwen2.5-1.5b-q4');
+    expect(await ModelStorage.checkModelExists(model.filename)).toBe(true);
+    initialize.mockRestore();
     unmount();
   });
 

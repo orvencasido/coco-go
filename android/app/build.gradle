@@ -3,7 +3,7 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 react {
-    /* React Native autolinking and build configuration */
+    autolinkLibrariesWithApp()
 }
 
 def jscFlavor = 'io.github.react-native-community:jsc-android:+'
@@ -13,6 +13,12 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.cocogo"
+    sourceSets {
+        main.assets.srcDirs += ["../../src/assets/models"]
+    }
+    aaptOptions {
+        noCompress "gguf"
+    }
     defaultConfig {
         applicationId "com.cocogo"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -54,6 +60,20 @@ android {
     }
 }
 
+tasks.register("verifyBundledModel") {
+    doLast {
+        def model = file("../../src/assets/models/qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        if (!model.exists()) {
+            println("ℹ️ Pre-bundled model not found in assets. The app will use on-demand download / sideloading via ModelManagerScreen.")
+        } else {
+            println("✅ Found pre-bundled model: ${model.name} (${model.length()} bytes)")
+        }
+    }
+}
+tasks.named("preBuild").configure {
+    dependsOn("verifyBundledModel")
+}
+
 dependencies {
     implementation("com.facebook.react:react-android")
 
@@ -64,4 +84,3 @@ dependencies {
     }
 }
 
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

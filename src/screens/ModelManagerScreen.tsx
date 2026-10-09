@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { useModelManager } from '@/hooks/useModelManager';
 import { ModelDescriptor } from '@/types/ai';
@@ -58,8 +59,8 @@ export const ModelManagerScreen: React.FC = () => {
   };
 
   const renderModelItem = ({ item }: { item: ModelDescriptor }) => {
-    const isSelected = item.id === activeModelId;
     const status = modelStatus[item.id] || 'not_downloaded';
+    const isSelected = item.id === activeModelId && status === 'active';
     const sizeMb = (item.sizeBytes / (1024 * 1024)).toFixed(0);
     const isRecommended = item.id === deviceInfo.recommendedModelId;
     const downloadState = downloadStateMap[item.id];
@@ -115,7 +116,9 @@ export const ModelManagerScreen: React.FC = () => {
               onResume={() => resumeDownload(item.id)}
               onCancel={() => cancelDownload(item.id)}
             />
-          ) : status === 'ready' || status === 'active' ? (
+          ) : status === 'loading' ? (
+            <Text>Loading model into memory...</Text>
+          ) : status === 'ready' || status === 'active' || (status === 'error' && downloadState?.failureStage === 'activation') ? (
             <View style={styles.readyActionsContainer}>
               <TouchableOpacity
                 style={[styles.selectBtn, isSelected && styles.activeBtn]}
@@ -126,7 +129,7 @@ export const ModelManagerScreen: React.FC = () => {
                     styles.selectBtnText,
                     isSelected && styles.activeBtnText,
                   ]}>
-                  {isSelected ? '✓ Active Model' : 'Activate Model'}
+                  {isSelected ? '✓ Active Model' : status === 'error' ? 'Retry Activation' : 'Activate Model'}
                 </Text>
               </TouchableOpacity>
 
@@ -141,14 +144,22 @@ export const ModelManagerScreen: React.FC = () => {
           ) : (
             <TouchableOpacity
               style={styles.downloadBtn}
+              disabled={Platform.OS === 'web'}
               onPress={() => startDownload(item.id)}
               testID={`download-btn-${item.id}`}>
               <Text style={styles.downloadBtnText}>
-                📥 Download GGUF (~{sizeMb} MB)
+                {Platform.OS === 'web'
+                  ? 'Install models in the Android / iOS app'
+                  : `📥 ${status === 'error' ? 'Retry Download' : 'Download GGUF'} (~${sizeMb} MB)`}
               </Text>
             </TouchableOpacity>
           )}
         </View>
+        {status === 'error' && downloadState?.statusText && (
+          <Text style={styles.modalErrorText} accessibilityRole="alert">
+            {downloadState.statusText}
+          </Text>
+        )}
       </View>
     );
   };
@@ -169,7 +180,9 @@ export const ModelManagerScreen: React.FC = () => {
           <Text style={styles.deviceTitle}>📱 Hardware Memory Profile</Text>
           <View style={styles.offlineStatusBadge}>
             <View style={styles.greenPulse} />
-            <Text style={styles.offlineStatusText}>Offline Engine Ready</Text>
+            <Text style={styles.offlineStatusText}>
+              {modelStatus[activeModelId] === 'active' ? 'Offline Engine Ready' : 'Model Setup Required'}
+            </Text>
           </View>
         </View>
 
@@ -202,6 +215,7 @@ export const ModelManagerScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>Installed & Available Models</Text>
         <TouchableOpacity
           style={styles.sideloadTriggerBtn}
+          disabled={Platform.OS === 'web'}
           onPress={() => setShowSideloadModal(true)}
           testID="open-sideload-modal-btn">
           <Text style={styles.sideloadTriggerText}>+ Import GGUF</Text>

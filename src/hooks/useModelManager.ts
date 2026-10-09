@@ -1,19 +1,13 @@
-import { useCallback, useMemo } from 'react';
-import { useAppStore, ModelDownloadState } from '@/services/storage/useAppStore';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useAppStore } from '@/services/storage/useAppStore';
 import { AVAILABLE_MODELS, DEFAULT_MODEL_ID } from '@/services/ai/modelConfig';
-import { ModelDescriptor, ModelStatus } from '@/types/ai';
+import { ModelDescriptor } from '@/types/ai';
 import { ModelStorage } from '@/services/storage/ModelStorage';
 import { LlamaService } from '@/services/ai/LlamaService';
 
-// Module-level map to track background simulated download jobs
-interface ActiveJob {
-  timer: ReturnType<typeof setInterval> | null;
-  downloadedBytes: number;
-  totalBytes: number;
-  isPaused: boolean;
-}
+import { ModelDownloader } from '@/services/storage/ModelDownloader';
 
-const activeJobs = new Map<string, ActiveJob>();
+let activatingModel = false;
 
 export function useModelManager() {
   const activeModelId = useAppStore((state) => state.activeModelId);
@@ -27,9 +21,6 @@ export function useModelManager() {
 
   const setActiveModelId = useAppStore((state) => state.setActiveModelId);
   const setModelStatus = useAppStore((state) => state.setModelStatus);
-  const setDownloadProgress = useAppStore((state) => state.setDownloadProgress);
-  const setDownloadStateForModel = useAppStore((state) => state.setDownloadStateForModel);
-  const removeDownloadStateForModel = useAppStore((state) => state.removeDownloadStateForModel);
   const addCustomModel = useAppStore((state) => state.addCustomModel);
   const removeCustomModel = useAppStore((state) => state.removeCustomModel);
 
@@ -56,155 +47,31 @@ export function useModelManager() {
     };
   }, [deviceRamMb, deviceStorageFreeMb]);
 
-  /**
-   * Starts downloading a model with progress tracking.
-   */
-  const startDownload = useCallback(
-    async (modelId: string, options?: { fastSimulation?: boolean }) => {
-      const model =
-        AVAILABLE_MODELS[modelId] ||
-        customModels.find((m) => m.id === modelId);
-
-      if (!model) {
-        console.warn(`[useModelManager] Model with id "${modelId}" not found`);
-        return;
-      }
-
-      // Clear any existing job
-      if (activeJobs.has(modelId)) {
-        const existing = activeJobs.get(modelId);
-        if (existing?.timer) clearInterval(existing.timer);
-        activeJobs.delete(modelId);
-      }
-
-      setModelStatus(modelId, 'downloading');
-      const totalBytes = model.sizeBytes || 986 * 1024 * 1024;
-      let downloadedBytes = 0;
-
-      setDownloadStateForModel(modelId, {
-        progress: 0,
-        downloadedBytes: 0,
-        totalBytes,
-        isPaused: false,
-        statusText: 'Connecting to Hugging Face repository...',
-      });
-      setDownloadProgress(0);
-
-      const isTestEnv = process.env.NODE_ENV === 'test' || options?.fastSimulation;
-      const stepBytes = isTestEnv ? totalBytes / 2 : totalBytes / 20; // 2 steps in test, ~20 in normal
-      const stepIntervalMs = isTestEnv ? 20 : 150;
-
-      const job: ActiveJob = {
-        timer: null,
-        downloadedBytes: 0,
-        totalBytes,
-        isPaused: false,
-      };
-
-      job.timer = setInterval(async () => {
-        if (job.isPaused) return;
-
-        downloadedBytes += stepBytes;
-        job.downloadedBytes = downloadedBytes;
-
-        if (downloadedBytes >= totalBytes) {
-          downloadedBytes = totalBytes;
-          if (job.timer) clearInterval(job.timer);
-          activeJobs.delete(modelId);
-
-          // Mark mock file in storage to satisfy existence check
-          const localPath = model.localPath || ModelStorage.getModelLocalPath(model.filename);
-          ModelStorage.setMockFile(localPath, totalBytes, true);
-
-          setDownloadStateForModel(modelId, {
-            progress: 100,
-            downloadedBytes: totalBytes,
-            totalBytes,
-            isPaused: false,
-            statusText: 'Download complete! Model ready.',
-          });
-          setDownloadProgress(100);
-          setModelStatus(modelId, 'ready');
-
-          // Clean up progress card after short display
-          setTimeout(() => {
-            removeDownloadStateForModel(modelId);
-          }, 600);
-          return;
+  // Restore availability from actual files when the manager opens.
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      for (const model of availableModelsList) {
+        const status = await ModelStorage.getModelStatus(model.id, model);
+        const current = useAppStore.getState().modelStatus[model.id];
+        if (mounted && current !== 'downloading' && current !== 'loading' && current !== 'active' && current !== 'error') {
+          setModelStatus(model.id, status);
         }
-
-        const pct = Math.min(99, Math.round((downloadedBytes / totalBytes) * 100));
-        setDownloadStateForModel(modelId, {
-          progress: pct,
-          downloadedBytes,
-          totalBytes,
-          isPaused: false,
-          statusText: `Downloading weights (${pct}%)...`,
-        });
-        setDownloadProgress(pct);
-      }, stepIntervalMs);
-
-      activeJobs.set(modelId, job);
-    },
-    [
-      customModels,
-      setModelStatus,
-      setDownloadStateForModel,
-      setDownloadProgress,
-      removeDownloadStateForModel,
-    ],
-  );
-
-  /**
-   * Pauses an in-progress model download.
-   */
-  const pauseDownload = useCallback(
-    (modelId: string) => {
-      const job = activeJobs.get(modelId);
-      if (job) {
-        job.isPaused = true;
       }
-      setDownloadStateForModel(modelId, {
-        isPaused: true,
-        statusText: 'Download paused',
-      });
-    },
-    [setDownloadStateForModel],
-  );
+    })();
+    return () => { mounted = false; };
+  }, [availableModelsList, setModelStatus]);
 
-  /**
-   * Resumes a paused model download.
-   */
-  const resumeDownload = useCallback(
-    (modelId: string) => {
-      const job = activeJobs.get(modelId);
-      if (job) {
-        job.isPaused = false;
-      }
-      setDownloadStateForModel(modelId, {
-        isPaused: false,
-        statusText: 'Resuming download...',
-      });
-    },
-    [setDownloadStateForModel],
-  );
+  const startDownload = useCallback(async (modelId: string) => {
+    const model = availableModelsList.find((item) => item.id === modelId);
+    if (model) {
+      await ModelDownloader.start(model);
+    }
+  }, [availableModelsList]);
 
-  /**
-   * Cancels an ongoing download and cleans up state.
-   */
-  const cancelDownload = useCallback(
-    (modelId: string) => {
-      const job = activeJobs.get(modelId);
-      if (job?.timer) {
-        clearInterval(job.timer);
-      }
-      activeJobs.delete(modelId);
-      removeDownloadStateForModel(modelId);
-      setModelStatus(modelId, 'not_downloaded');
-      setDownloadProgress(0);
-    },
-    [removeDownloadStateForModel, setModelStatus, setDownloadProgress],
-  );
+  const pauseDownload = useCallback((modelId: string) => ModelDownloader.pause(modelId), []);
+  const resumeDownload = useCallback((modelId: string) => ModelDownloader.resume(modelId), []);
+  const cancelDownload = useCallback((modelId: string) => ModelDownloader.cancel(modelId), []);
 
   /**
    * Selects and activates a downloaded or sideloaded model.
@@ -212,29 +79,54 @@ export function useModelManager() {
    */
   const selectModel = useCallback(
     async (model: ModelDescriptor): Promise<boolean> => {
+      if (activatingModel || LlamaService.getState().isGenerating) {
+        return false;
+      }
+      activatingModel = true;
+      let fileIsValid = false;
       try {
-        // Check if previously active model status should transition
-        if (activeModelId && activeModelId !== model.id) {
-          setModelStatus(activeModelId, 'ready');
-        }
-
-        setActiveModelId(model.id);
-        setModelStatus(model.id, 'active');
-
         const localPath = model.localPath || ModelStorage.getModelLocalPath(model.filename);
-        await LlamaService.initModel({
+        const validation = await ModelStorage.verifyModelSize(localPath, model.sizeBytes);
+        if (!validation.isValid) {
+          throw new Error(validation.error || 'Download a complete model before activating it.');
+        }
+        fileIsValid = true;
+        setModelStatus(model.id, 'loading');
+        const loaded = await LlamaService.initModel({
           modelPath: localPath,
           nCtx: model.contextWindow || 2048,
         });
+        if (!loaded || LlamaService.getState().isMockMode) {
+          throw new Error(LlamaService.getState().lastError || 'The native AI engine could not load this model.');
+        }
+        if (activeModelId && activeModelId !== model.id) {
+          const previous = availableModelsList.find((item) => item.id === activeModelId);
+          setModelStatus(activeModelId, previous ? await ModelStorage.getModelStatus(previous.id, previous) : 'not_downloaded');
+        }
+        setActiveModelId(model.id);
+        setModelStatus(model.id, 'active');
+        useAppStore.getState().removeDownloadStateForModel(model.id);
 
         return true;
       } catch (err) {
         console.error('[useModelManager] Failed to initialize model with LlamaService:', err);
         setModelStatus(model.id, 'error');
+        useAppStore.getState().setDownloadStateForModel(model.id, {
+          statusText: err instanceof Error ? err.message : String(err),
+          failureStage: fileIsValid ? 'activation' : 'download',
+        });
+        if (!LlamaService.isModelLoaded()) {
+          const currentId = useAppStore.getState().activeModelId;
+          if (currentId !== model.id && useAppStore.getState().modelStatus[currentId] === 'active') {
+            setModelStatus(currentId, 'ready');
+          }
+        }
         return false;
+      } finally {
+        activatingModel = false;
       }
     },
-    [activeModelId, setActiveModelId, setModelStatus],
+    [activeModelId, availableModelsList, setActiveModelId, setModelStatus],
   );
 
   /**
@@ -249,7 +141,10 @@ export function useModelManager() {
       if (!model) return false;
 
       // Cancel any ongoing download first
-      cancelDownload(modelId);
+      await cancelDownload(modelId);
+      if (LlamaService.getActiveModelPath() === (model.localPath || ModelStorage.getModelLocalPath(model.filename))) {
+        await LlamaService.releaseModel();
+      }
 
       const localPath = model.localPath || ModelStorage.getModelLocalPath(model.filename);
       await ModelStorage.deleteModelFile(localPath);
@@ -263,7 +158,7 @@ export function useModelManager() {
       // If active model was deleted, switch back to default model
       if (activeModelId === modelId) {
         setActiveModelId(DEFAULT_MODEL_ID);
-        setModelStatus(DEFAULT_MODEL_ID, 'ready');
+        setModelStatus(DEFAULT_MODEL_ID, await ModelStorage.getModelStatus(DEFAULT_MODEL_ID));
       }
 
       return true;

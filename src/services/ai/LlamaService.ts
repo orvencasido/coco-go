@@ -73,9 +73,9 @@ export class LlamaServiceImpl implements ILlamaService {
       if (!config.isModelAsset) {
         const fileExists = await this.checkFileExists(config.modelPath);
         if (!fileExists) {
-          console.warn(
-            `[LlamaService] GGUF model file not found at "${config.modelPath}". Entering fallback mock mode.`,
-          );
+          if (!config.allowMockMode) {
+            throw new Error('Model file not found. Download or import a GGUF model first.');
+          }
           this.isMockMode = true;
           this.isLoaded = true;
           this.gpuAccelerated = false;
@@ -108,14 +108,15 @@ export class LlamaServiceImpl implements ILlamaService {
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[LlamaService] Native context initialization failed: ${errorMessage}. Falling back to mock mode.`,
-      );
       this.lastError = errorMessage;
-      // Fallback mode ensures app remains functional in dev/simulator without native JSI
-      this.isMockMode = true;
-      this.isLoaded = true;
+      this.isMockMode = !!config.allowMockMode;
+      this.isLoaded = !!config.allowMockMode;
       this.gpuAccelerated = false;
+      if (!config.allowMockMode) {
+        this.activeModelPath = null;
+        this.activeRuntimeConfig = null;
+        throw new Error(errorMessage);
+      }
       return true;
     }
   }

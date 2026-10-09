@@ -13,7 +13,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       'react-native': 'react-native-web',
-      'llama.rn': path.resolve(__dirname, './src/services/ai/__mocks__/llama.rn.web.ts'),
+      'llama.rn': path.resolve(__dirname, './src/services/ai/BrowserLlama.ts'),
       '@op-engineering/op-sqlite': path.resolve(__dirname, './src/services/transit/__mocks__/op-sqlite.web.ts'),
       'react-native-fs': path.resolve(__dirname, './src/services/storage/__mocks__/rnfs.web.ts'),
     },
@@ -31,5 +31,15 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
   },
 });

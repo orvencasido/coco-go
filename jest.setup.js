@@ -5,6 +5,11 @@ jest.mock('react-native-fs', () => ({
   unlink: jest.fn().mockResolvedValue(undefined),
   mkdir: jest.fn().mockResolvedValue(undefined),
   copyFile: jest.fn().mockResolvedValue(undefined),
+  copyFileAssets: jest.fn().mockResolvedValue(undefined),
+  MainBundlePath: '/mock/app.bundle',
+  moveFile: jest.fn().mockResolvedValue(undefined),
+  hash: jest.fn().mockResolvedValue(''),
+  getFSInfo: jest.fn().mockResolvedValue({ freeSpace: 10000000000, totalSpace: 20000000000 }),
   downloadFile: jest.fn().mockReturnValue({
     jobId: 1,
     promise: Promise.resolve({ statusCode: 200, bytesWritten: 1000 }),

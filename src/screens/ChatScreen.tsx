@@ -13,6 +13,7 @@ import {
 import { useChat } from '@/hooks/useChat';
 import { ChatMessageBubble } from '@/components/ChatMessageBubble';
 import { useAppStore } from '@/services/storage/useAppStore';
+import { initializeDefaultModel } from '@/services/ai/DefaultModel';
 
 export const ChatScreen: React.FC = () => {
   const { messages, isGenerating, sendMessage, stopGeneration, quickPrompts } = useChat();
@@ -21,6 +22,12 @@ export const ChatScreen: React.FC = () => {
 
   const activeModel = useAppStore((state) => state.activeModel);
   const isOfflineMode = useAppStore((state) => state.isOfflineMode);
+  const modelIsActive = useAppStore((state) => state.modelStatus[state.activeModelId] === 'active');
+  const modelStatus = useAppStore((state) => state.modelStatus[state.activeModelId]);
+  const modelError = useAppStore((state) => state.modelInitializationError);
+  const modelMessage = useAppStore((state) => state.modelInitializationMessage);
+  const modelProgress = useAppStore((state) => state.modelInitializationProgress);
+  const canSend = modelIsActive && !isGenerating;
 
   // Retrieve the latest inference metrics from the last completed assistant response
   const latestMetrics = useMemo(() => {
@@ -40,13 +47,13 @@ export const ChatScreen: React.FC = () => {
   }, [messages, isGenerating]);
 
   const handleSend = () => {
-    if (!inputText.trim() || isGenerating) return;
+    if (!inputText.trim() || !canSend) return;
     sendMessage(inputText);
     setInputText('');
   };
 
   const handleChipPress = (prompt: string) => {
-    if (isGenerating) return;
+    if (!canSend) return;
     sendMessage(prompt);
   };
 
@@ -60,7 +67,7 @@ export const ChatScreen: React.FC = () => {
           <View style={styles.statusLeft}>
             <View style={styles.indicatorGreen} />
             <Text style={styles.statusText}>
-              {isOfflineMode ? '100% Offline Mode Active' : 'Online'}
+              {modelIsActive ? (isOfflineMode ? 'Offline AI Active' : 'Online') : modelStatus === 'error' ? 'AI Unavailable' : 'Preparing Qwen…'}
             </Text>
             <Text style={styles.dividerDot}>•</Text>
             <Text style={styles.modelTag} numberOfLines={1}>
@@ -77,6 +84,24 @@ export const ChatScreen: React.FC = () => {
             </View>
           )}
         </View>
+
+        {!modelIsActive && (
+          <View style={styles.modelNotice} testID="model-startup-notice">
+            <Text style={styles.modelNoticeText} accessibilityRole={modelError ? 'alert' : undefined}>
+              {modelError || modelMessage}
+            </Text>
+            {modelProgress !== null && !modelError && (
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${modelProgress}%` }]} />
+              </View>
+            )}
+            {modelError && (
+              <TouchableOpacity onPress={() => { void initializeDefaultModel(); }} testID="retry-model-startup">
+                <Text style={styles.retryText}>Try again</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Message List */}
         <FlatList
@@ -98,8 +123,8 @@ export const ChatScreen: React.FC = () => {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.chip, isGenerating && styles.disabledChip]}
-                disabled={isGenerating}
+                style={[styles.chip, !canSend && styles.disabledChip]}
+                disabled={!canSend}
                 onPress={() => handleChipPress(item.prompt)}
                 testID={`quick-prompt-${item.id}`}>
                 {item.tag && <Text style={styles.chipTag}>{item.tag} · </Text>}
@@ -117,7 +142,7 @@ export const ChatScreen: React.FC = () => {
             onChangeText={setInputText}
             placeholder="Tanong tungkol sa biyahe (hal. Lucena to SM Makati)..."
             placeholderTextColor="#94a3b8"
-            editable={!isGenerating}
+            editable={true}
             onSubmitEditing={handleSend}
             returnKeyType="send"
             testID="chat-input"
@@ -133,8 +158,8 @@ export const ChatScreen: React.FC = () => {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.sendButton, !inputText.trim() && styles.disabledButton]}
-              disabled={!inputText.trim()}
+              style={[styles.sendButton, (!inputText.trim() || !canSend) && styles.disabledButton]}
+              disabled={!inputText.trim() || !canSend}
               onPress={handleSend}
               testID="chat-send-btn"
               accessibilityLabel="Send commute question">
@@ -148,6 +173,31 @@ export const ChatScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  progressTrack: {
+    height: 4,
+    marginTop: 8,
+    backgroundColor: '#dbeafe',
+    borderRadius: 2,
+  },
+  progressFill: {
+    height: 4,
+    backgroundColor: '#0284c7',
+    borderRadius: 2,
+  },
+  modelNotice: {
+    padding: 12,
+    backgroundColor: '#eff6ff',
+  },
+  modelNoticeText: {
+    color: '#334155',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  retryText: {
+    color: '#0284c7',
+    fontWeight: '700',
+    marginTop: 8,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#f8fafc',

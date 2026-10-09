@@ -40,6 +40,13 @@ export function useChat() {
       setIsGenerating(true);
 
       try {
+        if (!LlamaService.isModelLoaded()) {
+          updateLastMessage({
+            content: useAppStore.getState().modelInitializationError || 'Preparing the included Qwen 2.5 1.5B model. Please wait a moment.',
+            isStreaming: false,
+          });
+          return;
+        }
         const result = await ChatOrchestrator.handleUserMessage(trimmed, {
           onToken: (_token, accumulated) => {
             updateLastMessageContent(accumulated, true);
