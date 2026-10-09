@@ -15,6 +15,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   metrics?: InferenceMetrics;
   routeResult?: TransitRouteOption;
+  routeOptions?: TransitRouteOption[];
   error?: string;
 }
 

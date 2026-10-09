@@ -4,5 +4,5 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(react-native|@react-native|llama.rn|react-native-fs)/)',
   ],
-  setupFiles: [],
+  setupFiles: ['./jest.setup.js'],
 };

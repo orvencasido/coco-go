@@ -37,6 +37,8 @@ export interface ModelDescriptor {
   recommendedRamMb: number;
   contextWindow: number;
   description: string;
+  isCustom?: boolean;
+  localPath?: string;
 }
 
 export interface LlamaRuntimeConfig {

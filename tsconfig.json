@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "commonjs",
-    "lib": ["es2022"],
+    "lib": ["es2022", "dom"],
     "allowJs": true,
     "jsx": "react-jsx",
     "noEmit": true,
@@ -27,6 +27,7 @@
   },
   "include": [
     "src/**/*",
+    "tests/**/*",
     "App.tsx",
     "index.js"
   ],

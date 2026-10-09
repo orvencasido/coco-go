@@ -340,28 +340,70 @@ export class LlamaServiceImpl implements ILlamaService {
       let origin: string | null = null;
       let dest: string | null = null;
 
-      if (lower.includes('lucena')) {
-        origin = 'Lucena Grand Central Terminal';
-      }
-      if (lower.includes('pitx')) {
-        dest = 'PITX';
-      }
-      if (lower.includes('buendia')) {
-        dest = 'Buendia (Gil Puyat)';
-      }
-      if (lower.includes('cubao')) {
-        dest = 'Cubao';
-      }
-      if (lower.includes('makati') || lower.includes('ayala')) {
-        dest = 'SM Makati / Ayala';
+      const originMatch = prompt.match(/Origin:\s*([^,\n]+)/i);
+      const destMatch = prompt.match(/Destination:\s*([^,\n.]+)/i);
+      if (originMatch && destMatch) {
+        origin = originMatch[1].trim();
+        dest = destMatch[1].trim();
+      } else {
+        const fromToMatch = prompt.match(/(?:from|mula|galing)\s+([a-zA-Z0-9\s/.-]+?)\s+(?:to|hanggang|papuntang|pa-)\s+([a-zA-Z0-9\s/.-]+)/i);
+        const toMatch = prompt.match(/([a-zA-Z0-9\s/.-]+?)\s+to\s+([a-zA-Z0-9\s/.-]+)/i);
+        if (fromToMatch) {
+          origin = fromToMatch[1].trim();
+          dest = fromToMatch[2].trim();
+        } else if (toMatch) {
+          origin = toMatch[1].trim();
+          dest = toMatch[2].trim();
+          if (lower.includes('lucena')) {
+            origin = 'Lucena Grand Central Terminal';
+          }
+          if (lower.includes('pitx')) {
+            dest = 'PITX';
+          }
+          if (lower.includes('buendia')) {
+            dest = 'Buendia (Gil Puyat)';
+          }
+          if (lower.includes('cubao')) {
+            dest = 'Cubao';
+          }
+          if (lower.includes('makati') || lower.includes('ayala')) {
+            dest = 'SM Makati / Ayala';
+          }
+          if (lower.includes('batangas')) {
+            dest = 'Batangas';
+          }
+        }
       }
 
+      const intent = (origin && dest) ? 'find_route' : (origin || dest) ? 'clarification' : 'greeting';
+
       mockResponse = JSON.stringify({
-        intent: 'find_route',
-        origin: origin || 'Lucena Grand Central Terminal',
-        destination: dest || 'PITX',
+        intent,
+        origin,
+        destination: dest,
         preferredMode: 'bus',
       });
+    } else if (
+      prompt.includes('GREETING_SYSTEM_PROMPT') ||
+      prompt.includes('cheerful offline Philippine transit assistant') ||
+      prompt.toLowerCase().includes('kumusta')
+    ) {
+      mockResponse =
+        'Kumusta! Ako si Coco, ang iyong offline transit guide para sa Southern Luzon at Metro Manila. Saan mo gustong pumunta? Halimbawa: "Lucena to SM Makati" o "PITX to Cubao".';
+    } else if (
+      prompt.includes('FALLBACK_NOT_FOUND') ||
+      prompt.includes('walang nakitang ruta sa offline database') ||
+      prompt.includes('not currently covered')
+    ) {
+      mockResponse =
+        'Pasensya na, hindi pa available ang rutang ito sa aming offline database. Sa ngayon, sinasaklaw namin ang mga provincial routes mula Southern Luzon (Lucena, Batangas) patungong Metro Manila (PITX, Buendia, Cubao, Makati/Ayala, MRT-3, LRT-1, at EDSA Carousel). Subukan maghanap papuntang mga pangunahing terminal.';
+    } else if (
+      prompt.includes('CLARIFICATION_SYSTEM_PROMPT') ||
+      prompt.includes('missing necessary route information') ||
+      prompt.includes('Ask the user for clarification:')
+    ) {
+      mockResponse =
+        'Saan ka manggagaling o saan ang iyong destinasyon? Halimbawa: "Lucena to SM Makati" o "PITX to Cubao".';
     } else {
       mockResponse =
         'Kumusta! Ako si Coco, ang iyong offline transit guide.\n\n' +

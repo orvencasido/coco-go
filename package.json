@@ -6,8 +6,11 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "web": "vite --host",
+    "build:web": "vite build",
     "start": "react-native start",
     "test": "jest",
+    "eval": "jest tests/eval.test.ts --runInBand",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit"
   },
@@ -17,10 +20,12 @@
     "@react-navigation/native-stack": "^6.10.1",
     "llama.rn": "^0.13.0-rc.7",
     "react": "18.3.1",
+    "react-dom": "^18.3.1",
     "react-native": "0.76.5",
     "react-native-fs": "^2.20.0",
     "react-native-safe-area-context": "^4.12.0",
     "react-native-screens": "^3.34.0",
+    "react-native-web": "^0.19.13",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -35,10 +40,13 @@
     "@types/react": "~18.3.12",
     "@types/react-native": "~0.73.0",
     "@types/react-test-renderer": "^18.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "jest": "^29.7.0",
     "react-test-renderer": "18.3.1",
-    "typescript": "~5.6.2"
+    "ts-node": "^10.9.2",
+    "typescript": "~5.6.2",
+    "vite": "^5.4.21"
   },
   "engines": {
     "node": ">=18"
