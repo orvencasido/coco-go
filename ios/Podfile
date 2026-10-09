@@ -1,0 +1,32 @@
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+platform :ios, '14.0'
+prepare_react_native_project!
+
+target 'CocoGo' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:react_native_path],
+    :hermes_enabled => true,
+    :fabric_enabled => false
+  )
+
+  # Target Apple Silicon & Metal hardware acceleration flags for llama.cpp
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:react_native_path],
+      :mac_catalyst_enabled => false
+    )
+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |build_config|
+        # Enable Metal optimization and aggressive vectorization
+        build_config.build_settings['ENABLE_BITCODE'] = 'NO'
+        build_config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)', '-O3', '-flto']
+      end
+    end
+  end
+end

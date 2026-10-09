@@ -1,0 +1,53 @@
+# Node / dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# React Native / Metro
+.metro-health-check*
+.expo/
+dist/
+build/
+.bundle/
+
+# Large Model weights (keep small placeholder or metadata, exclude large weights)
+*.gguf
+*.bin
+*.pt
+!src/assets/models/.gitkeep
+
+# SQLite database local dev files (exclude transient SQLite WAL/shm)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Android build & IDE
+android/app/build/
+android/build/
+android/.gradle/
+android/app/.cxx/
+android/.idea/
+android/*.iml
+android/app/*.iml
+local.properties
+
+# iOS build & Pods
+ios/Pods/
+ios/build/
+ios/*.xcworkspace
+ios/*.xcuserdata
+ios/Podfile.lock
+
+# Environment & OS
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
